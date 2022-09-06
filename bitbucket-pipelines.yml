@@ -1,0 +1,60 @@
+# This is an example Starter pipeline configuration
+# Use a skeleton to build, test and deploy using manual and parallel steps
+# -----
+# You can specify a custom docker image from Docker Hub as your build environment.
+image: composer:2.0
+
+pipelines:
+  # default - contains the steps that will run on every push.
+  branches:
+    master:
+      - step:
+          name: Build and Test Master
+          caches:
+            - composer
+          artifacts:
+            - storage/**
+            - vendor/**
+            - public/**
+            - .env
+            - application.tar.gz
+          script:
+            - composer install
+            - ln -f -s .env.pipelines .env
+            - ./vendor/bin/phpunit --verbose
+            - git archive --format=tar.gz master -o application.tar.gz
+      - step:
+          name: Deploying to Heroku Master
+          deployment: production
+          script:
+            - pipe: atlassian/heroku-deploy:1.2.1
+              variables:
+                HEROKU_API_KEY: $HEROKU_API_KEY
+                HEROKU_APP_NAME: $SALEVENT_MASTER_REPO
+                ZIP_FILE: "application.tar.gz"
+
+    staging:
+      - step:
+          name: Build and Test For Staging
+          caches:
+            - composer
+          artifacts:
+            - storage/**
+            - vendor/**
+            - public/**
+            - .env
+            - staging.tar.gz
+          script:
+            - composer install
+            - ln -f -s .env.pipelines .env
+            - ./vendor/bin/phpunit --verbose
+            - git archive --format=tar.gz staging -o staging.tar.gz
+      - step:
+          name: Deploy to staging
+          deployment: staging
+          script:
+            - pipe: atlassian/heroku-deploy:1.2.1
+              variables:
+                HEROKU_API_KEY: $HEROKU_API_KEY
+                HEROKU_APP_NAME: $SALEVENT_STAGING_REPO
+                ZIP_FILE: "staging.tar.gz"
